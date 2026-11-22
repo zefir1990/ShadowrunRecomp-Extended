@@ -95,16 +95,32 @@ build\shadowrun_runner.exe "<your ROM>" 3000 frame.bmp
 
 Both are described in [`docs/SDL-FRONTEND.md`](docs/SDL-FRONTEND.md).
 
-For dialog debugging there is a launcher that skips the intro: it boots as the
-Samurai and stops at the motel manager's question (frame ~6265), with the debug
-server ready for MCP input.
+For dialog debugging the runner can start directly inside an in-game dialog.
+It copies the Samurai template into the first party slot, skips the intro, and
+calls the game's conversation dispatcher. The settings live in `debug.ini` next
+to the executable:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start-dialog.ps1
+```ini
+dialog_start=true
+dialog_id=0
+dialog_start_frame=120
 ```
 
-It replays `scripts/samurai-dialog.input` under `--turbo` (about a minute) and
-then holds; `-Paced` runs at 59.94 fps instead.
+`dialog_id=0` is the Hollywood Correctional Facility gate. A decimal value is an
+index into the dialog catalog in `game/shadowrun_dialogs.c`. `0xSSEE` selects a
+scene/event pair and `0xNNNNNN` selects a conversation node directly. The
+launcher writes the file and starts the game:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-dialog.ps1 -DialogId 0
+powershell -ExecutionPolicy Bypass -File scripts\validate-dialog-start.ps1
+```
+
+`dialog_start_frame` defaults to 120 (about two seconds), the earliest point
+where the boot font and VDP state are ready. The full catalog and the raw
+scene/event and node forms are documented in
+[`docs/DIALOG-START.md`](docs/DIALOG-START.md). The old frame-timed motel route
+in `scripts\samurai-dialog.input` remains as a reference but is no longer used.
 
 Scripted agents can drive the window over MCP: `tools/genesis-mcp` presses pad
 buttons and captures screenshots through the runner's debug command server; see

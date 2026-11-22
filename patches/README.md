@@ -27,6 +27,12 @@ interior-label miss list, sound behaviour unchanged (FM thirds 6570/383/383).
   unless the matching env var is set.
 - `0005-instruction-trace.patch` - per-instruction `GEN_TRACE(pc, cycles)` emission in
   the recompiler, addressing every instruction site (used to compare the two backends).
+- `0006-runner-game-periodic-hook.patch` - calls `GameSpec.call_periodic` at a
+  cycle-budget yield on the game fiber. This lets a game run a guest routine that
+  waits for VBlank without being trapped inside the atomic VBlank handler. The
+  dialog-start feature uses it. Apply it to the `segagenesisrecomp` checkout with
+  `git apply -p1 patches/0006-runner-game-periodic-hook.patch`, or manually keep
+  the same block in `runner/glue.c`.
 
 ## ROM patch
 

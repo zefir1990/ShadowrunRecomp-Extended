@@ -18,6 +18,7 @@
 #include "game_spec.h"
 #include "genesis_runtime.h"
 #include "glue.h"
+#include "shadowrun_dialogs.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -116,6 +117,11 @@ static void shadowrun_apply_mage_start(void)
             m68k_write8(0x00FFF21B + slot, 0x00u);
     }
 }
+static void shadowrun_call_periodic(void)
+{
+    shadowrun_dialogs_maybe_start();
+}
+
 static void shadowrun_call_vblank(void)
 {
     shadowrun_apply_mage_start();
@@ -152,4 +158,6 @@ const GameSpec g_game_spec = {
     .call_entry_point       = shadowrun_call_entry_point,
     .call_vblank            = shadowrun_call_vblank,
     .call_hblank            = shadowrun_call_hblank,
+    .call_periodic          = shadowrun_call_periodic,
+    .periodic_at_budget_yields = 1,
 };

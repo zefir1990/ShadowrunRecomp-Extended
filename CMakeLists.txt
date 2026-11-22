@@ -107,7 +107,8 @@ genesisrecomp_add_generated_sources(
 add_executable(ShadowrunRecomp
     ${RUNNER_SOURCES}
     ${GENERATED_SOURCES}
-    "${CMAKE_SOURCE_DIR}/game/${PREFIX}_spec.c")
+    "${CMAKE_SOURCE_DIR}/game/${PREFIX}_spec.c"
+    "${CMAKE_SOURCE_DIR}/game/${PREFIX}_dialogs.c")
 
 if(GRG_REVERSE_DEBUG)
     # The generated code references g_rdb_current_func / rdb_on_block when it is
@@ -184,7 +185,8 @@ if(SHADOWRUN_BUILD_COSIM)
         "${RUNNER_ROOT}/cosim_cycles.c")
     add_executable(ShadowrunRecomp_cosim
         ${RUNNER_SOURCES} ${GENERATED_SOURCES} ${COSIM_SOURCES}
-        "${CMAKE_SOURCE_DIR}/game/${PREFIX}_spec.c")
+        "${CMAKE_SOURCE_DIR}/game/${PREFIX}_spec.c"
+        "${CMAKE_SOURCE_DIR}/game/${PREFIX}_dialogs.c")
     target_compile_definitions(ShadowrunRecomp_cosim PRIVATE
         INCLUDE_GENERATED_CODE=1 ENABLE_RECOMPILED_CODE=1 OWN_BACKEND=1
         GENESIS_COSIM=1

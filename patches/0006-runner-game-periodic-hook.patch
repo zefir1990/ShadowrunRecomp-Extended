@@ -1,0 +1,39 @@
+diff --git a/runner/game_spec.h b/runner/game_spec.h
+index a135a9b..a8e6687 100644
+--- a/runner/game_spec.h
++++ b/runner/game_spec.h
+@@ -193,6 +193,7 @@ typedef struct GameSpec {
+      * routine (func_001642) while the game thread is parked at
+      * WaitForVBlank. NULL = nothing to do. */
+     void      (*call_periodic)(void);
++    int       periodic_at_budget_yields;
+ 
+     /* ---- Lifecycle hooks ---- */
+     /* Called once after runtime_init() and ROM load, before the game
+diff --git a/runner/glue.c b/runner/glue.c
+index 9678eef..87489f7 100644
+--- a/runner/glue.c
++++ b/runner/glue.c
+@@ -765,6 +765,7 @@ void glue_run_game_chunk(uint32_t cycles)
+  * queue-read where hardware places it after (the S3 giant-ring entry-sound
+  * kill). */
+ uint64_t g_chunk_yield_count = 0;
++static int s_in_game_periodic = 0;
+ static void check_cycle_budget(void)
+ {
+     if (s_interleave_active && !s_in_vblank_service) {
+@@ -792,6 +793,14 @@ static void check_cycle_budget(void)
+              * thousands of frames and eventually produces a false hang. */
+             s_watchdog_counter = 0;
+             g_chunk_yield_count++;
++            if (g_game_spec.periodic_at_budget_yields &&
++                g_game_spec.call_periodic && !s_in_game_periodic) {
++                M68KState periodic_save = g_cpu;
++                s_in_game_periodic = 1;
++                g_game_spec.call_periodic();
++                s_in_game_periodic = 0;
++                g_cpu = periodic_save;
++            }
+             { char stack_marker; game_stack_note("cycle-budget", &stack_marker); }
+             yield_to_main(GLUE_YIELD_BUDGET);
+         } else if (latched_vint_unmasked()) {

@@ -227,16 +227,25 @@ reports a hard exit under `build\crash-reports`.
 
 ## Dialog debugging
 
-`scripts\start-dialog.ps1` boots the game as the Samurai and parks it in the motel
-manager conversation, so dialogue cases can be exercised without replaying the
-intro. It writes `build\debug.ini` (port 4378), then runs
-`scripts\samurai-dialog.input` under `--turbo`; the route is frame-timed from a
-recorded session and reaches the dialog at frame ~6265. `-Paced` disables turbo.
+`scripts\start-dialog.ps1` boots directly into an in-game dialog as the first
+Samurai, without replaying the intro or the menus. It writes `build\debug.ini`:
 
-The MCP tools `save_state(path)` and `load_state(path)` wrap the runner's state
-files if a specific dialog needs to be captured and restored later. Loading a
-state on a freshly booted game does not resume the game fiber, so prefer the
-route script for startup and state files only for inspection.
+```ini
+dialog_start=true
+dialog_id=0
+dialog_start_frame=120
+```
+
+`dialog_id` is a catalog index in `game/shadowrun_dialogs.c`; id 0 is the
+Hollywood Correctional Facility gate. `0xSSEE` selects a scene/event pair and
+`0xNNNNNN` selects a conversation node directly. The runner waits for
+`dialog_start_frame`, copies the Samurai template to `0xFF0100`, marks it as the
+first active party member, and calls the game's conversation dispatcher.
+
+`scripts\validate-dialog-start.ps1` runs the same path and checks the log and
+screenshot. The MCP tools `save_state(path)` and `load_state(path)` wrap the
+runner's state files if a specific dialog needs to be captured and restored
+later.
 
 ## Important addresses
 
@@ -321,6 +330,7 @@ filtered.
 
 - `README.md` - build, run and modification overview
 - `docs/ROM-PATCH.md` - ROM offsets and class table
+- `docs/DIALOG-START.md` - direct dialog start, ini keys and the catalog
 - `docs/RUNNER.md`, `docs/SDL-FRONTEND.md` - runner and frontend notes
 - `STATUS.md` - known WIP gameplay issues
 - `game-wiki/WEAPONS.md`, `game-wiki/CHARACTERS.md` - game reference

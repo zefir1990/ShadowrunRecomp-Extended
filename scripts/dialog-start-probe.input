@@ -1,0 +1,5 @@
+WAIT 300
+SCREENSHOT shots/dialog-start.png
+DUMP_RAM dumps/dialog-start.ram
+WAIT 60
+EXIT 0

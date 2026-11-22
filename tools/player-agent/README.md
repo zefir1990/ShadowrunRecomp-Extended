@@ -74,9 +74,13 @@ that directory on `PYTHONPATH`.
 ```
 runs\apartment\
   screenshots\turn-001.png ... turn-030.png
-  transcript.jsonl      one record per turn: description, action, screenshot path
+  transcript.jsonl      one record per turn: description, mcp_state, action, screenshot path
   transcript.md         the same trail as prose
 ```
+
+The MCP `read_state` answer is stored next to the screenshot description. It is
+still the placeholder `State will be here`, so the transcript makes the gap
+between the MCP state and the model's reading of the same frame visible.
 
 Actions are exactly one of:
 
@@ -94,8 +98,7 @@ any action type the model invents.
 
 | File | Responsibility |
 | --- | --- |
-| `player_agent/game.py` | MCP client wrapper: `screenshot`, `press`, `read_state` |
-| `player_agent/model.py` | vision request, strict JSON parsing, action validation |
+| `player_agent/game.py` | MCP client wrapper: `screenshot`, `press`, `read_state` || `player_agent/model.py` | vision request, strict JSON parsing, action validation |
 | `player_agent/runtime.py` | observe/decide/act loop, history window, transcript |
 | `player_agent/cli.py` | argument parsing and wiring |
 

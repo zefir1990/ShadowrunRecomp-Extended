@@ -15,6 +15,7 @@ DEFAULT_HISTORY_SIZE: Final[int] = 6
 class GamePort(Protocol):
     async def screenshot(self) -> bytes: ...
     async def press(self, button: str, duration_ms: int) -> str: ...
+    async def read_state(self) -> str: ...
 
 
 class PlayerModelPort(Protocol):
@@ -35,6 +36,7 @@ class PlayerSettings:
 class StepRecord:
     turn: int
     description: str
+    mcp_state: str
     action: Action
     screenshot_path: str | None
 
@@ -72,6 +74,8 @@ class Transcript:
             lines.append("")
             lines.append(step.description)
             lines.append("")
+            lines.append(f"MCP read_state: {step.mcp_state}")
+            lines.append("")
             lines.append(f"Action: {action_summary(step.action)}")
             if step.screenshot_path:
                 lines.append(f"Screenshot: {step.screenshot_path}")
@@ -103,6 +107,7 @@ def _step_payload(step: StepRecord) -> dict[str, object]:
     return {
         "turn": step.turn,
         "description": step.description,
+        "mcp_state": step.mcp_state,
         "action": action_payload,
         "screenshot_path": step.screenshot_path,
     }
@@ -138,6 +143,7 @@ class PlayerRuntime:
         try:
             for turn in range(1, self._settings.max_turns + 1):
                 screenshot = await self._game.screenshot()
+                mcp_state = await self._game.read_state()
                 observation = await self._model.observe_and_decide(screenshot, self._settings.goal, history)
                 screenshot_path = (
                     self._transcript.save_screenshot(turn, screenshot) if self._transcript else None
@@ -145,6 +151,7 @@ class PlayerRuntime:
                 step = StepRecord(
                     turn=turn,
                     description=observation.description,
+                    mcp_state=mcp_state,
                     action=observation.action,
                     screenshot_path=screenshot_path,
                 )

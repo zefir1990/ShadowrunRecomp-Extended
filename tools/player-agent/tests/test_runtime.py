@@ -36,6 +36,7 @@ class FakeGame:
     def __init__(self, screenshots: list[bytes]) -> None:
         self._screenshots = list(screenshots)
         self.presses: list[tuple[str, int]] = []
+        self.state_requests = 0
 
     async def screenshot(self) -> bytes:
         return self._screenshots.pop(0) if len(self._screenshots) > 1 else self._screenshots[0]
@@ -43,6 +44,10 @@ class FakeGame:
     async def press(self, button: str, duration_ms: int) -> str:
         self.presses.append((button, duration_ms))
         return f"Pressed {button}"
+
+    async def read_state(self) -> str:
+        self.state_requests += 1
+        return "State will be here"
 
 
 class ScriptedModel:
@@ -115,10 +120,13 @@ class RuntimeTest(unittest.TestCase):
             self.assertTrue((Path(directory) / "screenshots" / "turn-002.png").exists())
             jsonl = (Path(directory) / "transcript.jsonl").read_text(encoding="utf-8").splitlines()
             self.assertEqual(json.loads(jsonl[0])["action"]["type"], "press")
+            self.assertEqual(json.loads(jsonl[0])["mcp_state"], "State will be here")
             self.assertEqual(json.loads(jsonl[1])["action"]["type"], "stop")
             markdown = (Path(directory) / "transcript.md").read_text(encoding="utf-8")
             self.assertIn("Goal: start a game", markdown)
+            self.assertIn("MCP read_state: State will be here", markdown)
             self.assertIn("Title screen. PRESS START.", markdown)
+            self.assertEqual(game.state_requests, 2)
 
 
 class ParseObservationTest(unittest.TestCase):

@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
 def print_step(step: StepRecord) -> None:
     first_line = step.description.splitlines()[0] if step.description else ""
     print(f"[turn {step.turn}] {first_line}", flush=True)
+    print(f"  mcp read_state: {step.mcp_state}", flush=True)
     print(f"  -> {action_summary(step.action)}", flush=True)
 
 

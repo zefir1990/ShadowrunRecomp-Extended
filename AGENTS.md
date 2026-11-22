@@ -194,8 +194,10 @@ opencode auth store. `PLAYER_VISION_MODEL`, `PLAYER_VISION_BASE_URL` and
 `PLAYER_VISION_PROVIDER` override that. The description is produced from the
 screenshot by the vision model; `read_state` on the MCP server is not used until
 it grows a real implementation. The transcript lands in
-`screenshots/turn-NNN.png`, `transcript.jsonl` and `transcript.md`. Tests use
-fake game and model objects, so they need no ROM and no API key:
+`screenshots/turn-NNN.png`, `transcript.jsonl` and `transcript.md`, and each
+record carries the current `read_state` answer (today the placeholder
+`State will be here`) next to the description read from the same screenshot.
+Tests use fake game and model objects, so they need no ROM and no API key:
 `python -m unittest discover -s tools\player-agent\tests`.
 
 ## Important addresses

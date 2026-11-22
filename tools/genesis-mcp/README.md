@@ -81,7 +81,7 @@ The oracle build listens on `4379`, so set `GENESIS_DEBUG_PORT=4379` to drive it
 | `{"cmd":"frame_info"}` | current wall frame, used for the reported span |
 | `{"cmd":"set_input","keys":"40"}` | hold A (`bit 6`) |
 | `{"cmd":"set_input","keys":"off"}` | release the TCP input source |
-| `{"cmd":"screenshot","path":"C:/…/screen.png"}` | write the current framebuffer |
+| `{"cmd":"screenshot","path":"C:/path/screen.png"}` | write the current framebuffer |
 
 Bits: `up` 0x01, `down` 0x02, `left` 0x04, `right` 0x08, `b` 0x10, `c` 0x20,
 `a` 0x40, `start` 0x80. The runner merges this source with the live keyboard and

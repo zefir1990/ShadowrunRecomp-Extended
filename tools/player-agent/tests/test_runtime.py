@@ -40,6 +40,7 @@ class FakeGame:
         self.presses: list[tuple[str, int]] = []
         self.states: list[tuple[str, str]] = []
         self.state_requests = 0
+        self._frame = 43
 
     async def screenshot(self) -> bytes:
         return self._screenshots.pop(0) if len(self._screenshots) > 1 else self._screenshots[0]
@@ -57,8 +58,9 @@ class FakeGame:
         return "recorded"
 
     async def internal_state(self) -> dict[str, object]:
+        self._frame += 57
         return {
-            "frame": 100,
+            "frame": self._frame,
             "m68k": {"A": [0, 0, 0, 0, 0, 0, 0, 7890]},
             "z80": {"PC": 2338},
             "vdp": {"display": 1},
@@ -149,6 +151,25 @@ class RuntimeTest(unittest.TestCase):
             self.assertEqual(game.states[0][0], "Title screen. PRESS START.")
             self.assertEqual(len(game.states[0][1]), 64)
             self.assertEqual(game.states[0][1], hashlib.sha256(PNG_BYTES).hexdigest())
+
+    def test_route_recording_writes_an_input_script(self) -> None:
+        game = FakeGame([PNG_BYTES])
+        model = ScriptedModel(
+            [
+                Observation("title", PressAction("start", 150)),
+                Observation("menu", PressAction("a", 150)),
+                Observation("dialog", StopAction("done")),
+            ]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            route = Path(directory) / "route.input"
+            settings = PlayerSettings(goal="route", max_turns=5, route_path=route)
+            asyncio.run(PlayerRuntime(game, model, settings).run())
+            lines = route.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(
+            lines,
+            ["WAIT 100", "PRESS START 9", "WAIT 57", "PRESS A 9", "WAIT 1000000"],
+        )
 
 
 class ParseObservationTest(unittest.TestCase):

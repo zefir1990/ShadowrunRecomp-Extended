@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from .runtime import StepRecord, action_summary
+from .runtime import StepRecord, action_summary, frame_of
 
 DEFAULT_STALL_LIMIT: Final[int] = 4
 STDERR_TAIL_LINES: Final[int] = 120
@@ -16,11 +16,6 @@ class CrashDetected(RuntimeError):
         super().__init__(reason if not detail else f"{reason}: {detail}")
         self.reason = reason
         self.detail = detail
-
-
-def frame_of(step: StepRecord) -> int | None:
-    frame = step.internal_state.get("frame")
-    return frame if isinstance(frame, int) else None
 
 
 @dataclass(frozen=True)

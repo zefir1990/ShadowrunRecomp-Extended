@@ -33,6 +33,7 @@ class PlayerSettings:
     max_turns: int = DEFAULT_MAX_TURNS
     transcript_directory: Path | None = None
     history_size: int = DEFAULT_HISTORY_SIZE
+    route_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,11 @@ class Transcript:
                 lines.append(f"Screenshot: {step.screenshot_path}")
             lines.append("")
         return "\n".join(lines).rstrip() + "\n"
+
+
+def frame_of(step: StepRecord) -> int | None:
+    frame = step.internal_state.get("frame")
+    return frame if isinstance(frame, int) else None
 
 
 def action_summary(action: Action) -> str:
@@ -162,6 +168,8 @@ class PlayerRuntime:
         self._sleep = sleep
         self._on_step = on_step
         self._records: list[StepRecord] = []
+        self._route_lines: list[str] = []
+        self._route_last_frame = 0
         self._transcript = (
             Transcript(settings.transcript_directory, settings.goal)
             if settings.transcript_directory is not None
@@ -204,6 +212,7 @@ class PlayerRuntime:
                     history = history[-self._settings.history_size:]
                     break
                 if isinstance(observation.action, PressAction):
+                    self._record_route_press(step, observation.action)
                     await self._game.press(observation.action.button, observation.action.duration_ms)
                     history.append(f"pressed {observation.action.button}")
                 elif isinstance(observation.action, WaitAction):
@@ -212,4 +221,23 @@ class PlayerRuntime:
         finally:
             if self._transcript:
                 self._transcript.write()
+            self._write_route()
         return self.steps
+
+    def _record_route_press(self, step: StepRecord, action: PressAction) -> None:
+        frame = frame_of(step)
+        if frame is None:
+            return
+        gap = max(1, frame - self._route_last_frame)
+        duration_frames = max(1, round(action.duration_ms * 60 / 1000))
+        self._route_lines.append(f"WAIT {gap}")
+        self._route_lines.append(f"PRESS {action.button.upper()} {duration_frames}")
+        self._route_last_frame = frame
+
+    def _write_route(self) -> None:
+        path = self._settings.route_path
+        if path is None or not self._route_lines:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lines = [*self._route_lines, "WAIT 1000000", ""]
+        path.write_text("\n".join(lines), encoding="utf-8", newline="\n")

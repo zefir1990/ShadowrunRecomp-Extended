@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--stderr-log", default="", help="game stderr file to quote in a crash report")
     parser.add_argument("--crash-log", default="", help="runner last_error.log to quote in a crash report")
     parser.add_argument("--crash-dir", default="", help="where crash reports go (default: transcript directory)")
+    parser.add_argument("--record-route", default="", help="write the presses as an input script route")
     return parser
 
 
@@ -62,6 +63,7 @@ async def play(arguments: argparse.Namespace, endpoint: VisionEndpoint) -> int:
         goal=arguments.goal,
         max_turns=arguments.turns,
         transcript_directory=Path(arguments.transcript) if arguments.transcript else None,
+        route_path=Path(arguments.record_route) if arguments.record_route else None,
     )
     crash_directory = Path(arguments.crash_dir) if arguments.crash_dir else (
         settings.transcript_directory or Path.cwd()

@@ -210,6 +210,13 @@ description, next to the description read from the same screenshot.
 Tests use fake game and model objects, so they need no ROM and no API key:
 `python -m unittest discover -s tools\player-agent\tests`.
 
+The runtime also detects crashes while it plays: an MCP call that stops answering,
+a frame counter that stops advancing for four turns, or a changed
+`build/last_error.log` end the session with exit code `3` and write a
+`crash-*.md` report with the last turn, the screenshot path and the runner log
+tails. Pass `--stderr-log build\game-stderr.log --crash-log build\last_error.log`
+so the report can quote them.
+
 ## Important addresses
 
 ### Class selection

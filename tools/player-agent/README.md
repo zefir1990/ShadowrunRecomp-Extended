@@ -69,6 +69,30 @@ that directory on `PYTHONPATH`.
 | `--server` | alternate `genesis-mcp/server.py` |
 | `--base-url`, `--api-key`, `--model`, `--timeout` | override the environment |
 
+## Crash detection
+
+The runtime watches for a dead or stuck runner while it plays:
+
+| Signal | Detection |
+| --- | --- |
+| runner stopped answering | any MCP call raises (`connection refused`, closed stdio stream) |
+| runner froze | `read_game_state` frame stays the same for 4 turns |
+| runner wrote a crash report | `last_error.log` changes on disk (`crash_report_dump_persistent`) |
+
+Any of these ends the run with exit code `3` and writes
+`crash-YYYYMMDD-HHMMSS.md` next to the transcript. The report records the last
+turn's frame, action, description and screenshot path, plus the tail of the
+runner stderr log and `last_error.log`.
+
+```powershell
+python -m player_agent --goal "..." --turns 80 `
+  --transcript runs\bar `
+  --stderr-log build\game-stderr.log `
+  --crash-log build\last_error.log
+```
+
+A clean run exits `0`; a model or key failure exits `2`.
+
 ## Output
 
 ```

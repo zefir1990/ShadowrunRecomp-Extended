@@ -29,6 +29,7 @@ from player_agent.model import (
     parse_observation,
 )
 from player_agent.runtime import PlayerRuntime, PlayerSettings, StepRecord
+from player_agent.watcher import CrashDetected, CrashWatcher, WatchSettings
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n-test-image"
 
@@ -298,6 +299,76 @@ class CliTest(unittest.TestCase):
         arguments = build_parser().parse_args(["--goal", "win"])
         self.assertEqual(arguments.turns, 24)
         self.assertEqual(arguments.transcript, "")
+        self.assertEqual(arguments.stderr_log, "")
+        self.assertEqual(arguments.crash_log, "")
+
+
+def make_step(turn: int, frame: int | None) -> StepRecord:
+    return StepRecord(
+        turn=turn,
+        description=f"turn {turn}",
+        mcp_state="State will be here",
+        internal_state={"frame": frame} if frame is not None else {},
+        screenshot_sha256="0" * 64,
+        action=WaitAction(100),
+        screenshot_path=None,
+    )
+
+
+class CrashWatcherTest(unittest.TestCase):
+    def test_frame_stall_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            watcher = CrashWatcher(WatchSettings(report_directory=Path(directory), stall_limit=2))
+            watcher.record(make_step(1, 100))
+            watcher.record(make_step(2, 101))
+            watcher.record(make_step(3, 101))
+            with self.assertRaises(CrashDetected):
+                watcher.record(make_step(4, 101))
+
+    def test_advancing_frames_are_not_a_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            watcher = CrashWatcher(WatchSettings(report_directory=Path(directory), stall_limit=2))
+            for turn in range(1, 6):
+                watcher.record(make_step(turn, 100 + turn))
+
+    def test_report_quotes_the_last_step_and_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stderr_log = Path(directory) / "game-stderr.log"
+            stderr_log.write_text("first line\nboom: illegal instruction\n", encoding="utf-8")
+            watcher = CrashWatcher(
+                WatchSettings(
+                    report_directory=Path(directory) / "reports",
+                    stderr_log=stderr_log,
+                    crash_log=Path(directory) / "missing.log",
+                )
+            )
+            watcher.record(make_step(7, 1234))
+            report = watcher.write_report("the runner stopped answering MCP", "connection refused")
+            text = report.read_text(encoding="utf-8")
+            self.assertIn("the runner stopped answering MCP", text)
+            self.assertIn("connection refused", text)
+            self.assertIn("- last turn: 7", text)
+            self.assertIn("- last frame: 1234", text)
+            self.assertIn("boom: illegal instruction", text)
+            self.assertIn("cannot read", text)
+
+    def test_a_new_runner_crash_log_is_a_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            crash_log = Path(directory) / "last_error.log"
+            watcher = CrashWatcher(WatchSettings(report_directory=Path(directory), crash_log=crash_log))
+            watcher.record(make_step(1, 100))
+            crash_log.write_text("CRASH REPORT frame=101\n", encoding="utf-8")
+            with self.assertRaises(CrashDetected) as raised:
+                watcher.record(make_step(2, 110))
+            self.assertIn("wrote a crash report", raised.exception.reason)
+
+    def test_an_unchanged_crash_log_is_not_a_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            crash_log = Path(directory) / "last_error.log"
+            crash_log.write_text("old crash\n", encoding="utf-8")
+            watcher = CrashWatcher(WatchSettings(report_directory=Path(directory), crash_log=crash_log))
+            watcher.record(make_step(1, 100))
+            watcher.record(make_step(2, 110))
 
 
 if __name__ == "__main__":

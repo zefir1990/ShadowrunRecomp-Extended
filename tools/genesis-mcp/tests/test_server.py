@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 import zlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 TOOL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -166,27 +167,64 @@ class ScreenshotTest(unittest.TestCase):
         self.assertFalse(os.path.exists(captured_path.replace("/", os.sep)))
 
 
+class DescriptionHandler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        length = int(self.headers["Content-Length"])
+        self.rfile.read(length)
+        payload = {"choices": [{"message": {"content": "Generated description."}}]}
+        data = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, format: str, *arguments: object) -> None:
+        return
+
+
 class ReadStateTest(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory()
         os.environ["GENESIS_STATE_STORE"] = str(Path(self.directory.name) / "states.json")
+        os.environ["PLAYER_VISION_OPENCODE_AUTH"] = str(Path(self.directory.name) / "auth.json")
         self.fake_server = FakeDebugServer()
         os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
 
     def tearDown(self) -> None:
-        os.environ.pop("GENESIS_DEBUG_PORT", None)
-        os.environ.pop("GENESIS_STATE_STORE", None)
+        for name in list(os.environ):
+            if name.startswith("PLAYER_VISION_") or name.startswith("GENESIS_"):
+                os.environ.pop(name, None)
         self.directory.cleanup()
 
-    def test_placeholder_for_an_undescribed_screen(self) -> None:
+    def new_game_server(self) -> None:
+        self.fake_server = FakeDebugServer()
+        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+
+    def test_placeholder_when_no_model_and_no_cache(self) -> None:
         self.assertEqual(server.read_state(), "State will be here")
 
     def test_returns_the_description_recorded_for_the_same_screenshot(self) -> None:
         digest = state_store.digest_png(self.fake_server.image)
         server.record_state("Title screen with PRESS START.", digest)
-        self.fake_server = FakeDebugServer()
-        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+        self.new_game_server()
         self.assertEqual(server.read_state(), "Title screen with PRESS START.")
+
+    def test_describes_a_new_screen_then_answers_from_cache(self) -> None:
+        endpoint_server = ThreadingHTTPServer(("127.0.0.1", 0), DescriptionHandler)
+        threading.Thread(target=endpoint_server.serve_forever, daemon=True).start()
+        port = endpoint_server.server_address[1]
+        os.environ["PLAYER_VISION_API_KEY"] = "key"
+        os.environ["PLAYER_VISION_MODEL"] = "vision-test"
+        os.environ["PLAYER_VISION_BASE_URL"] = f"http://127.0.0.1:{port}/v1"
+        try:
+            self.assertEqual(server.read_state(), "Generated description.")
+        finally:
+            endpoint_server.shutdown()
+            endpoint_server.server_close()
+        os.environ.pop("PLAYER_VISION_API_KEY")
+        self.new_game_server()
+        self.assertEqual(server.read_state(), "Generated description.")
 
     def test_rejects_an_empty_description(self) -> None:
         with self.assertRaises(ValueError):

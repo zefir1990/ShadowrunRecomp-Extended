@@ -80,11 +80,11 @@ runs\apartment\
 
 Each turn pairs three views of the same moment: the screenshot, the model's
 description of it, and the emulator snapshot from `read_game_state` (frame, A7,
-Z80 PC, display, pad). The MCP `read_state` answer is stored too; it is the
-placeholder `State will be here` until the turn's description has been recorded
-for that exact screenshot, after which `read_state` returns the text for any
-later frame with the same pixels. Records carry the screenshot SHA-256 used for
-that match.
+Z80 PC, display, pad). The runtime registers the description with
+`record_state`, so the `read_state` it takes right after returns the same text
+from the cache; when the screen moved between the capture and the call, that
+`read_state` describes the newer frame instead of reusing stale text. Records
+carry the screenshot SHA-256 used for the match.
 
 Actions are exactly one of:
 

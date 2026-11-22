@@ -13,7 +13,7 @@ so no engine changes are needed.
 |---|---|---|
 | `press_button` | `button` (`up`, `down`, `left`, `right`, `a`, `b`, `c`, `start`), `duration_ms` (default `150`) | Holds the button, waits, releases, returns the frame span |
 | `screenshot` | none | The current screen as a PNG image (320x224) |
-| `read_state` | none | The description recorded for this exact screen, or `State will be here` |
+| `read_state` | none | Text description of the screen: cached for an identical screen, described on demand for a new one, `State will be here` without a model |
 | `record_state` | `description`, `screenshot_sha256` | Stores a description for that screen so `read_state` can return it |
 | `read_game_state` | none | Emulator state at the current frame as JSON: m68k registers, VDP flags, pad input, frame number |
 
@@ -29,16 +29,24 @@ so nothing is left on disk.
 
 ## State descriptions
 
-`read_state` captures the current screen, hashes the PNG and looks the hash up in
-a description store:
+`read_state` always describes the current screen; the hash cache only saves work
+for repeated frames:
 
-- match: returns the stored text description for that exact screen;
-- no match: returns the placeholder `State will be here`.
+1. capture the screen and hash the PNG;
+2. exact match in the store: return the stored description;
+3. no match: ask the vision model to describe that capture, store it under its
+   hash and return the text;
+4. no model or no key: return the placeholder `State will be here`.
 
-`record_state(description, screenshot_sha256)` fills the store. The player agent
-calls it after describing a screenshot, so a later `read_state` on the same
-screen (a static menu, a dialog that does not animate) answers with text instead
-of the placeholder.
+Because matching is exact, a description is never attached to a different
+picture. A changed pixel (animation, blinking cursor) simply means a fresh
+description instead of a wrong one. Fuzzy or perceptual matching was rejected on
+purpose: two menus that differ by one word look almost identical at any coarse
+hash, so a near-match could hand back the wrong text.
+
+`record_state(description, screenshot_sha256)` seeds the store directly; the
+player agent calls it for every turn, so its descriptions become the cache for
+`read_state` and the second vision call is skipped when the screen does not move.
 
 | Setting | Value |
 | --- | --- |
@@ -46,6 +54,7 @@ of the placeholder.
 | Override | `GENESIS_STATE_STORE` |
 | Capacity | 500 screens, oldest evicted first |
 | Key | SHA-256 of the captured PNG bytes |
+| Model | same `PLAYER_VISION_*` configuration as the player agent |
 
 ## Setup
 

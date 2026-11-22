@@ -178,13 +178,13 @@ class PlayerRuntime:
             for turn in range(1, self._settings.max_turns + 1):
                 screenshot = await self._game.screenshot()
                 internal_state = await self._game.internal_state()
-                mcp_state = await self._game.read_state()
                 observation = await self._model.observe_and_decide(screenshot, self._settings.goal, history)
                 screenshot_path = (
                     self._transcript.save_screenshot(turn, screenshot) if self._transcript else None
                 )
                 screenshot_sha256 = hashlib.sha256(screenshot).hexdigest()
                 await self._game.record_state(observation.description, screenshot_sha256)
+                mcp_state = await self._game.read_state()
                 step = StepRecord(
                     turn=turn,
                     description=observation.description,

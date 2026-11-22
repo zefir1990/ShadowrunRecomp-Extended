@@ -11,6 +11,7 @@ from mcp.server.mcpserver import Image, MCPServer
 from debug_link import DebugEndpoint, GenesisDebugLink
 from genesis_pad import button_mask, normalize_button
 from state_store import StateStore, digest_png
+from vision_client import describe_png
 
 DEFAULT_DURATION_MS: Final[int] = 150
 MINIMUM_DURATION_MS: Final[int] = 1
@@ -86,13 +87,23 @@ def screenshot() -> Image:
 
 @server.tool(
     description=(
-        "Return the text description recorded for the current screen, or the placeholder "
-        "'State will be here' when this exact screen has not been described yet."
+        "Return the text description of the current screen. An already described screen is answered "
+        "from cache; a new screen is described by the vision model; without a model the placeholder "
+        "'State will be here' is returned."
     )
 )
 def read_state() -> str:
-    description = StateStore().lookup(digest_png(capture_screenshot_bytes()))
-    return description if description else READ_STATE_PLACEHOLDER
+    png = capture_screenshot_bytes()
+    digest = digest_png(png)
+    store = StateStore()
+    cached = store.lookup(digest)
+    if cached:
+        return cached
+    description = describe_png(png)
+    if not description:
+        return READ_STATE_PLACEHOLDER
+    store.remember(digest, description)
+    return description
 
 
 @server.tool(

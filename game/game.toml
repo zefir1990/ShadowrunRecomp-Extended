@@ -51,7 +51,8 @@ late_extra = [
                # intro text plots: blocks after a `jmp $c0da`, reached only by
                # computed jump (reported as interior-label misses at $05AEC6,
                # $05AEDA, $05AEEE). $05B378 is the CRAM/VRAM setup reached the same way.
-               0x05AEC6, 0x05AEDA, 0x05AEEE, 0x05B378]
+               0x05AEC6, 0x05AEDA, 0x05AEEE, 0x05B378,
+               0x0226CA]
 # Entry point plus the real handler entry points, and the pad-reader entries the
 # heuristic walk does not reach (the pad-1 path ends with `bra $19D0`, so the
 # pad-2 routine at $199A is a second entry with no direct BSR/JSR anywhere).

@@ -217,6 +217,14 @@ a frame counter that stops advancing for four turns, or a changed
 tails. Pass `--stderr-log build\game-stderr.log --crash-log build\last_error.log`
 so the report can quote them.
 
+A hang is the separate case where the runner still answers but the picture stops
+changing (for example a dialog that ignores input). `python -m
+player_agent.stuck_watch --out runs\watch --seconds 12 --probe a` hashes each
+screenshot and writes `stuck-<timestamp>.md` with the PNG; the probe reports
+whether the screen reacted, which separates a static screen from a real freeze.
+`scripts\run-monitored.ps1` launches the game under a process-level monitor and
+reports a hard exit under `build\crash-reports`.
+
 ## Dialog debugging
 
 `scripts\start-dialog.ps1` boots the game as the Samurai and parks it in the motel

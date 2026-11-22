@@ -93,6 +93,30 @@ python -m player_agent --goal "..." --turns 80 `
 
 A clean run exits `0`; a model or key failure exits `2`.
 
+## Stuck detection
+
+A hang is not a process crash: the runner keeps answering and the frame counter
+keeps advancing, but the screen never changes again (a dialog that ignores input,
+a frozen animation, a spin on a device). `player_agent.stuck_watch` watches the
+rendered screen instead:
+
+```powershell
+python -m player_agent.stuck_watch --out runs\prison-watch --seconds 12 --probe a
+```
+
+- screenshots every 0.5 s and hashes them;
+- unchanged for `--seconds`: writes `stuck-<timestamp>.md` and the matching PNG;
+- with `--probe`, presses that button once and reports whether the screen reacted
+  (`recovered after the probe` means static but alive; `still identical` means a
+  real hang).
+
+Use it while playing manually; it only presses the probe button when it is about
+to report.
+
+`scripts\run-monitored.ps1` covers the other failure mode: it launches the game,
+records its exit code and stderr, and writes a report under `build\crash-reports`
+when the process dies or `last_error.log` appears.
+
 ## Output
 
 ```

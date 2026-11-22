@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,7 @@ class GamePort(Protocol):
     async def press(self, button: str, duration_ms: int) -> str: ...
     async def read_state(self) -> str: ...
     async def internal_state(self) -> dict[str, object]: ...
+    async def record_state(self, description: str, screenshot_sha256: str) -> str: ...
 
 
 class PlayerModelPort(Protocol):
@@ -39,6 +41,7 @@ class StepRecord:
     description: str
     mcp_state: str
     internal_state: dict[str, object]
+    screenshot_sha256: str
     action: Action
     screenshot_path: str | None
 
@@ -79,6 +82,8 @@ class Transcript:
             lines.append(f"MCP read_state: {step.mcp_state}")
             lines.append("")
             lines.append(f"Internal state: {state_summary(step.internal_state)}")
+            lines.append("")
+            lines.append(f"Screenshot SHA-256: {step.screenshot_sha256}")
             lines.append("")
             lines.append(f"Action: {action_summary(step.action)}")
             if step.screenshot_path:
@@ -136,6 +141,7 @@ def _step_payload(step: StepRecord) -> dict[str, object]:
         "description": step.description,
         "mcp_state": step.mcp_state,
         "internal_state": step.internal_state,
+        "screenshot_sha256": step.screenshot_sha256,
         "action": action_payload,
         "screenshot_path": step.screenshot_path,
     }
@@ -177,11 +183,14 @@ class PlayerRuntime:
                 screenshot_path = (
                     self._transcript.save_screenshot(turn, screenshot) if self._transcript else None
                 )
+                screenshot_sha256 = hashlib.sha256(screenshot).hexdigest()
+                await self._game.record_state(observation.description, screenshot_sha256)
                 step = StepRecord(
                     turn=turn,
                     description=observation.description,
                     mcp_state=mcp_state,
                     internal_state=internal_state,
+                    screenshot_sha256=screenshot_sha256,
                     action=observation.action,
                     screenshot_path=screenshot_path,
                 )

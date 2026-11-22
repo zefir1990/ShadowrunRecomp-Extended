@@ -13,7 +13,8 @@ so no engine changes are needed.
 |---|---|---|
 | `press_button` | `button` (`up`, `down`, `left`, `right`, `a`, `b`, `c`, `start`), `duration_ms` (default `150`) | Holds the button, waits, releases, returns the frame span |
 | `screenshot` | none | The current screen as a PNG image (320x224) |
-| `read_state` | none | `State will be here` (placeholder for the description) |
+| `read_state` | none | The description recorded for this exact screen, or `State will be here` |
+| `record_state` | `description`, `screenshot_sha256` | Stores a description for that screen so `read_state` can return it |
 | `read_game_state` | none | Emulator state at the current frame as JSON: m68k registers, VDP flags, pad input, frame number |
 
 Button names are case-insensitive. `duration_ms` is bounded to 1..60000. The
@@ -24,8 +25,27 @@ button stuck.
 image content, so a client renders the real screen. `read_game_state` pulls the
 emulator's own snapshot for the newest recorded frame (m68k registers, VDP,
 Z80, pad input) and returns it as JSON. Captures go through `TemporaryDirectory`,
-so nothing is left on disk. `read_state` is reserved for a textual description and
-is still a placeholder.
+so nothing is left on disk.
+
+## State descriptions
+
+`read_state` captures the current screen, hashes the PNG and looks the hash up in
+a description store:
+
+- match: returns the stored text description for that exact screen;
+- no match: returns the placeholder `State will be here`.
+
+`record_state(description, screenshot_sha256)` fills the store. The player agent
+calls it after describing a screenshot, so a later `read_state` on the same
+screen (a static menu, a dialog that does not animate) answers with text instead
+of the placeholder.
+
+| Setting | Value |
+| --- | --- |
+| Store file | `%TEMP%\genesis-mcp-state.json` |
+| Override | `GENESIS_STATE_STORE` |
+| Capacity | 500 screens, oldest evicted first |
+| Key | SHA-256 of the captured PNG bytes |
 
 ## Setup
 

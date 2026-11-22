@@ -157,7 +157,8 @@ python -m unittest discover -s tools\genesis-mcp\tests -v
 | --- | --- |
 | `press_button(button, duration_ms)` | Holds a pad button (`up`, `down`, `left`, `right`, `a`, `b`, `c`, `start`), sleeps, releases, reports the frame span |
 | `screenshot()` | Returns the current screen as a PNG image |
-| `read_state()` | Placeholder text (`State will be here`) for the future screen description |
+| `read_state()` | The stored description for this exact screen, else `State will be here` |
+| `record_state(description, screenshot_sha256)` | Stores a description keyed by the screenshot hash |
 | `read_game_state()` | Emulator snapshot for the current frame as JSON: m68k, Z80, VDP, pad input |
 
 It talks to the runner's debug command server, so the game must run from a trace
@@ -173,9 +174,11 @@ Paths must use forward slashes: the runner's JSON reader copies string values
 verbatim and does not unescape `\\`. The oracle build listens on `4379`; the
 server accepts `GENESIS_DEBUG_HOST` and `GENESIS_DEBUG_PORT`.
 
-Keep the tool contract: `read_state` stays a placeholder until a real textual
-description is implemented, and `screenshot` must keep returning actual image
-content rather than text.
+Keep the tool contract: `read_state` returns either a stored description for the
+current screen or the placeholder `State will be here`, and `screenshot` must keep
+returning actual image content rather than text. Descriptions enter the store
+through `record_state(description, screenshot_sha256)`; the player agent calls it
+for every turn, which is what lets `read_state` answer for a repeated screen.
 
 ## Player agent
 
@@ -193,12 +196,14 @@ The default provider is DeepSeek (`deepseek-chat`); the key comes from
 `PLAYER_VISION_API_KEY`, `OPENAI_API_KEY`, or the `deepseek` entry in the
 opencode auth store. `PLAYER_VISION_MODEL`, `PLAYER_VISION_BASE_URL` and
 `PLAYER_VISION_PROVIDER` override that. The description is produced from the
-screenshot by the vision model; `read_state` on the MCP server is not used until
-it grows a real implementation. The transcript lands in
+screenshot by the vision model; the runtime also records it through
+`record_state`, so the MCP store learns every screen it has described. The
+transcript lands in
 `screenshots/turn-NNN.png`, `transcript.jsonl` and `transcript.md`, and each
-record carries the current `read_state` answer (today the placeholder
-`State will be here`) and the `read_game_state` snapshot (frame, A7, Z80 PC,
-display, pad) next to the description read from the same screenshot.
+record carries the current `read_state` answer (the stored description for that
+screen, or the placeholder `State will be here`), the `read_game_state` snapshot
+(frame, A7, Z80 PC, display, pad) and the screenshot SHA-256 used to register the
+description, next to the description read from the same screenshot.
 Tests use fake game and model objects, so they need no ROM and no API key:
 `python -m unittest discover -s tools\player-agent\tests`.
 

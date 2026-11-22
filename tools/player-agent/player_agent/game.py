@@ -38,6 +38,7 @@ class McpGame:
         parameters = StdioServerParameters(
             command=self._settings.python_executable,
             args=[self._settings.server_path],
+            env=dict(os.environ),
         )
         read_stream, write_stream = await self._stack.enter_async_context(stdio_client(parameters))
         self._session = await self._stack.enter_async_context(ClientSession(read_stream, write_stream))
@@ -86,3 +87,9 @@ class McpGame:
 
     async def internal_state(self) -> dict[str, object]:
         return json.loads(await self._call_text("read_game_state", {}))
+
+    async def record_state(self, description: str, screenshot_sha256: str) -> str:
+        return await self._call_text(
+            "record_state",
+            {"description": description, "screenshot_sha256": screenshot_sha256},
+        )

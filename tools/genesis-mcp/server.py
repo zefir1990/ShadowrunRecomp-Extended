@@ -10,11 +10,13 @@ from mcp.server.mcpserver import Image, MCPServer
 
 from debug_link import DebugEndpoint, GenesisDebugLink
 from genesis_pad import button_mask, normalize_button
+from state_store import StateStore, digest_png
 
 DEFAULT_DURATION_MS: Final[int] = 150
 MINIMUM_DURATION_MS: Final[int] = 1
 MAXIMUM_DURATION_MS: Final[int] = 60_000
 READ_STATE_PLACEHOLDER: Final[str] = "State will be here"
+DIGEST_LENGTH: Final[int] = 64
 
 server = MCPServer(
     name="genesis-pad",
@@ -66,8 +68,7 @@ def press_button(button: str, duration_ms: int = DEFAULT_DURATION_MS) -> str:
     return f"Pressed {name} for {duration} ms across frames {first_frame}..{last_frame}."
 
 
-@server.tool(description="Capture the current game screen and return it as a PNG image.")
-def screenshot() -> Image:
+def capture_screenshot_bytes() -> bytes:
     endpoint = DebugEndpoint.from_environment()
     with tempfile.TemporaryDirectory(prefix="genesis-mcp-") as directory:
         capture_path = Path(directory) / "screen.png"
@@ -75,12 +76,40 @@ def screenshot() -> Image:
             link.screenshot(str(capture_path))
         if not capture_path.exists():
             raise RuntimeError("the runner answered the screenshot command but wrote no file")
-        return Image(data=capture_path.read_bytes(), format="png")
+        return capture_path.read_bytes()
 
 
-@server.tool(description="Return a textual description of the current game screen.")
+@server.tool(description="Capture the current game screen and return it as a PNG image.")
+def screenshot() -> Image:
+    return Image(data=capture_screenshot_bytes(), format="png")
+
+
+@server.tool(
+    description=(
+        "Return the text description recorded for the current screen, or the placeholder "
+        "'State will be here' when this exact screen has not been described yet."
+    )
+)
 def read_state() -> str:
-    return READ_STATE_PLACEHOLDER
+    description = StateStore().lookup(digest_png(capture_screenshot_bytes()))
+    return description if description else READ_STATE_PLACEHOLDER
+
+
+@server.tool(
+    description=(
+        "Store the text description produced for one screenshot, keyed by that screenshot's "
+        "SHA-256, so read_state returns it for the same game state."
+    )
+)
+def record_state(description: str, screenshot_sha256: str) -> str:
+    trimmed = description.strip()
+    if not trimmed:
+        raise ValueError("description must not be empty")
+    digest = screenshot_sha256.strip().lower()
+    if len(digest) != DIGEST_LENGTH or any(character not in "0123456789abcdef" for character in digest):
+        raise ValueError("screenshot_sha256 must be a 64 character hexadecimal SHA-256")
+    StateStore().remember(digest, trimmed)
+    return f"recorded description for state {digest[:12]}"
 
 
 @server.tool(

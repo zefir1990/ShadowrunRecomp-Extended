@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import sys
@@ -36,6 +37,7 @@ class FakeGame:
     def __init__(self, screenshots: list[bytes]) -> None:
         self._screenshots = list(screenshots)
         self.presses: list[tuple[str, int]] = []
+        self.states: list[tuple[str, str]] = []
         self.state_requests = 0
 
     async def screenshot(self) -> bytes:
@@ -48,6 +50,10 @@ class FakeGame:
     async def read_state(self) -> str:
         self.state_requests += 1
         return "State will be here"
+
+    async def record_state(self, description: str, screenshot_sha256: str) -> str:
+        self.states.append((description, screenshot_sha256))
+        return "recorded"
 
     async def internal_state(self) -> dict[str, object]:
         return {
@@ -138,6 +144,10 @@ class RuntimeTest(unittest.TestCase):
             self.assertIn("Internal state: frame 100, A7 0x001ED2, z80 PC 0x0922, display 1, pad 0x00", markdown)
             self.assertIn("Title screen. PRESS START.", markdown)
             self.assertEqual(game.state_requests, 2)
+            self.assertEqual(len(game.states), 2)
+            self.assertEqual(game.states[0][0], "Title screen. PRESS START.")
+            self.assertEqual(len(game.states[0][1]), 64)
+            self.assertEqual(game.states[0][1], hashlib.sha256(PNG_BYTES).hexdigest())
 
 
 class ParseObservationTest(unittest.TestCase):

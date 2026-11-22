@@ -6,18 +6,22 @@ import os
 import socket
 import struct
 import sys
+import tempfile
 import threading
 import time
 import unittest
 import zlib
+from pathlib import Path
 
 TOOL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if TOOL_ROOT not in sys.path:
     sys.path.insert(0, TOOL_ROOT)
 
 import server
+import state_store
 from debug_link import DebugEndpoint, GenesisDebugLink
 from genesis_pad import button_mask, normalize_button
+from state_store import StateStore
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -163,8 +167,51 @@ class ScreenshotTest(unittest.TestCase):
 
 
 class ReadStateTest(unittest.TestCase):
-    def test_returns_the_placeholder_for_now(self) -> None:
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        os.environ["GENESIS_STATE_STORE"] = str(Path(self.directory.name) / "states.json")
+        self.fake_server = FakeDebugServer()
+        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+
+    def tearDown(self) -> None:
+        os.environ.pop("GENESIS_DEBUG_PORT", None)
+        os.environ.pop("GENESIS_STATE_STORE", None)
+        self.directory.cleanup()
+
+    def test_placeholder_for_an_undescribed_screen(self) -> None:
         self.assertEqual(server.read_state(), "State will be here")
+
+    def test_returns_the_description_recorded_for_the_same_screenshot(self) -> None:
+        digest = state_store.digest_png(self.fake_server.image)
+        server.record_state("Title screen with PRESS START.", digest)
+        self.fake_server = FakeDebugServer()
+        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+        self.assertEqual(server.read_state(), "Title screen with PRESS START.")
+
+    def test_rejects_an_empty_description(self) -> None:
+        with self.assertRaises(ValueError):
+            server.record_state("   ", "0" * 64)
+
+    def test_rejects_a_bad_digest(self) -> None:
+        with self.assertRaises(ValueError):
+            server.record_state("text", "not-a-digest")
+
+
+class StateStoreTest(unittest.TestCase):
+    def test_entries_survive_a_new_instance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "states.json"
+            first = StateStore(path)
+            first.remember("a" * 64, "menu screen")
+            self.assertEqual(StateStore(path).lookup("a" * 64), "menu screen")
+            self.assertIsNone(StateStore(path).lookup("b" * 64))
+
+    def test_oldest_entries_are_evicted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = StateStore(Path(directory) / "states.json")
+            for index in range(state_store.MAXIMUM_ENTRIES + 5):
+                store.remember(f"{index:064x}", f"state {index}")
+            self.assertEqual(len(json.loads((Path(directory) / "states.json").read_text())["entries"]), state_store.MAXIMUM_ENTRIES)
 
 
 class GameStateTest(unittest.TestCase):
@@ -187,11 +234,18 @@ class GameStateTest(unittest.TestCase):
 class ToolRegistrationTest(unittest.TestCase):
     def test_all_tools_are_exposed(self) -> None:
         tools = {tool.name: tool for tool in asyncio.run(server.server.list_tools())}
-        self.assertEqual(set(tools), {"press_button", "read_state", "screenshot", "read_game_state"})
+        self.assertEqual(
+            set(tools),
+            {"press_button", "read_state", "screenshot", "read_game_state", "record_state"},
+        )
         self.assertEqual(set(tools["press_button"].input_schema.get("properties", {})), {"button", "duration_ms"})
         self.assertEqual(tools["read_state"].input_schema.get("properties", {}), {})
         self.assertEqual(tools["screenshot"].input_schema.get("properties", {}), {})
         self.assertEqual(tools["read_game_state"].input_schema.get("properties", {}), {})
+        self.assertEqual(
+            set(tools["record_state"].input_schema.get("properties", {})),
+            {"description", "screenshot_sha256"},
+        )
 
 
 if __name__ == "__main__":

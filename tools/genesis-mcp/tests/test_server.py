@@ -77,6 +77,8 @@ class FakeDebugServer:
                     )
                 elif command["cmd"] == "read_joypad_port":
                     response["buttons"] = "0x00"
+                elif command["cmd"] in {"save_state", "load_state"}:
+                    response["path"] = command["path"]
                 elif command["cmd"] == "screenshot":
                     with open(str(command["path"]), "wb") as image_file:
                         image_file.write(self.image)
@@ -269,12 +271,39 @@ class GameStateTest(unittest.TestCase):
         self.assertNotIn("ok", state)
 
 
+class StateFileTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.fake_server = FakeDebugServer()
+        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+
+    def tearDown(self) -> None:
+        os.environ.pop("GENESIS_DEBUG_PORT", None)
+
+    def test_save_and_load_forward_the_path(self) -> None:
+        self.assertIn("saved", server.save_state(r"C:\states\dialog.state"))
+        saved = [command for command in self.fake_server.commands if command["cmd"] == "save_state"]
+        self.assertEqual(saved[0]["path"], "C:/states/dialog.state")
+        self.fake_server = FakeDebugServer()
+        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+        self.assertIn("loaded", server.load_state(r"C:\states\dialog.state"))
+        loaded = [command for command in self.fake_server.commands if command["cmd"] == "load_state"]
+        self.assertEqual(loaded[0]["path"], "C:/states/dialog.state")
+
+
 class ToolRegistrationTest(unittest.TestCase):
     def test_all_tools_are_exposed(self) -> None:
         tools = {tool.name: tool for tool in asyncio.run(server.server.list_tools())}
         self.assertEqual(
             set(tools),
-            {"press_button", "read_state", "screenshot", "read_game_state", "record_state"},
+            {
+                "press_button",
+                "read_state",
+                "screenshot",
+                "read_game_state",
+                "record_state",
+                "save_state",
+                "load_state",
+            },
         )
         self.assertEqual(set(tools["press_button"].input_schema.get("properties", {})), {"button", "duration_ms"})
         self.assertEqual(tools["read_state"].input_schema.get("properties", {}), {})
@@ -284,6 +313,8 @@ class ToolRegistrationTest(unittest.TestCase):
             set(tools["record_state"].input_schema.get("properties", {})),
             {"description", "screenshot_sha256"},
         )
+        self.assertEqual(set(tools["save_state"].input_schema.get("properties", {})), {"path"})
+        self.assertEqual(set(tools["load_state"].input_schema.get("properties", {})), {"path"})
 
 
 if __name__ == "__main__":

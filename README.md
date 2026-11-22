@@ -95,6 +95,17 @@ build\shadowrun_runner.exe "<your ROM>" 3000 frame.bmp
 
 Both are described in [`docs/SDL-FRONTEND.md`](docs/SDL-FRONTEND.md).
 
+For dialog debugging there is a launcher that skips the intro: it boots as the
+Samurai and stops at the motel manager's question (frame ~6265), with the debug
+server ready for MCP input.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-dialog.ps1
+```
+
+It replays `scripts/samurai-dialog.input` under `--turbo` (about a minute) and
+then holds; `-Paced` runs at 59.94 fps instead.
+
 Scripted agents can drive the window over MCP: `tools/genesis-mcp` presses pad
 buttons and captures screenshots through the runner's debug command server; see
 [`tools/genesis-mcp/README.md`](tools/genesis-mcp/README.md). `tools/player-agent`

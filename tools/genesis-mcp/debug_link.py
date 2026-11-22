@@ -113,6 +113,12 @@ class GenesisDebugLink:
     def screenshot(self, path: str) -> None:
         self.request({"cmd": "screenshot", "path": path.replace("\\", "/")})
 
+    def save_state(self, path: str) -> None:
+        self.request({"cmd": "save_state", "path": path.replace("\\", "/")})
+
+    def load_state(self, path: str) -> None:
+        self.request({"cmd": "load_state", "path": path.replace("\\", "/")})
+
     def current_frame(self) -> int:
         return int(self.request({"cmd": "frame_info"})["current_frame"])
 

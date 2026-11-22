@@ -217,6 +217,19 @@ a frame counter that stops advancing for four turns, or a changed
 tails. Pass `--stderr-log build\game-stderr.log --crash-log build\last_error.log`
 so the report can quote them.
 
+## Dialog debugging
+
+`scripts\start-dialog.ps1` boots the game as the Samurai and parks it in the motel
+manager conversation, so dialogue cases can be exercised without replaying the
+intro. It writes `build\debug.ini` (port 4378), then runs
+`scripts\samurai-dialog.input` under `--turbo`; the route is frame-timed from a
+recorded session and reaches the dialog at frame ~6265. `-Paced` disables turbo.
+
+The MCP tools `save_state(path)` and `load_state(path)` wrap the runner's state
+files if a specific dialog needs to be captured and restored later. Loading a
+state on a freshly booted game does not resume the game fiber, so prefer the
+route script for startup and state files only for inspection.
+
 ## Important addresses
 
 ### Class selection

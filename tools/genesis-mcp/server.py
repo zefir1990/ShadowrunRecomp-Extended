@@ -123,6 +123,26 @@ def record_state(description: str, screenshot_sha256: str) -> str:
     return f"recorded description for state {digest[:12]}"
 
 
+@server.tool(description="Save the runner's full emulator state to a file.")
+def save_state(path: str) -> str:
+    target = path.strip()
+    if not target:
+        raise ValueError("path must not be empty")
+    with GenesisDebugLink(DebugEndpoint.from_environment()) as link:
+        link.save_state(target)
+    return f"saved state to {target}"
+
+
+@server.tool(description="Load a previously saved emulator state from a file.")
+def load_state(path: str) -> str:
+    target = path.strip()
+    if not target:
+        raise ValueError("path must not be empty")
+    with GenesisDebugLink(DebugEndpoint.from_environment()) as link:
+        link.load_state(target)
+    return f"loaded state from {target}"
+
+
 @server.tool(
     description=(
         "Return the emulator's internal state at the current frame as JSON: "

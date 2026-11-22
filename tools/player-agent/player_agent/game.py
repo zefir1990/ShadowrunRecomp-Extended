@@ -93,3 +93,9 @@ class McpGame:
             "record_state",
             {"description": description, "screenshot_sha256": screenshot_sha256},
         )
+
+    async def save_state(self, path: str) -> str:
+        return await self._call_text("save_state", {"path": path})
+
+    async def load_state(self, path: str) -> str:
+        return await self._call_text("load_state", {"path": path})

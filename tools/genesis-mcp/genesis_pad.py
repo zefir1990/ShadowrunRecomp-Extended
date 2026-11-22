@@ -14,6 +14,7 @@ BUTTON_BITS: Final[dict[str, int]] = {
 }
 
 BUTTON_NAMES: Final[str] = ", ".join(BUTTON_BITS)
+BUTTON_ORDER: Final[tuple[str, ...]] = tuple(BUTTON_BITS)
 
 
 def normalize_button(button: str) -> str:

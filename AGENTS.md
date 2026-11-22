@@ -27,6 +27,7 @@ This is an experimental research port. It is not a finished game.
 | `build/generated/shadowrun/` | Generated C copied out of the generation stage. Never edit by hand |
 | `build/generation-stage/shadowrun/` | Raw recompiler output, same rule |
 | `tools/genesis-mcp/` | MCP server that drives the running game |
+| `tools/player-agent/` | Autonomous player: screenshots plus a vision model drive the pad |
 | `game-wiki/` | Weapons and character reference notes |
 | `docs/` | Run, ROM patch, runner, validation and milestone notes |
 | `scripts/` | Build, patch, validation and autotest scripts |
@@ -174,6 +175,28 @@ server accepts `GENESIS_DEBUG_HOST` and `GENESIS_DEBUG_PORT`.
 Keep the tool contract: `read_state` stays a placeholder until a real textual
 description is implemented, and `screenshot` must keep returning actual image
 content rather than text.
+
+## Player agent
+
+`tools/player-agent` is an autonomous player built on top of the MCP server. Each
+turn it captures a screenshot, sends it to a vision model, parses the returned
+`{"screen": ..., "action": ...}` JSON, and presses the chosen button. Every turn
+is stored with its screenshot:
+
+```powershell
+cd tools\player-agent
+python -m player_agent --goal "start a new game" --turns 20 --transcript runs\demo
+```
+
+The default provider is DeepSeek (`deepseek-chat`); the key comes from
+`PLAYER_VISION_API_KEY`, `OPENAI_API_KEY`, or the `deepseek` entry in the
+opencode auth store. `PLAYER_VISION_MODEL`, `PLAYER_VISION_BASE_URL` and
+`PLAYER_VISION_PROVIDER` override that. The description is produced from the
+screenshot by the vision model; `read_state` on the MCP server is not used until
+it grows a real implementation. The transcript lands in
+`screenshots/turn-NNN.png`, `transcript.jsonl` and `transcript.md`. Tests use
+fake game and model objects, so they need no ROM and no API key:
+`python -m unittest discover -s tools\player-agent\tests`.
 
 ## Important addresses
 

@@ -1,6 +1,6 @@
 [submodule "segagenesisrecomp"]
 	path = segagenesisrecomp
-	url = https://github.com/mstan/segagenesisrecomp.git
+	url = https://github.com/zefir1990/segagenesisrecomp.git
 [submodule "recomp-ui"]
 	path = recomp-ui
 	url = https://github.com/mstan/recomp-ui.git

@@ -74,13 +74,15 @@ that directory on `PYTHONPATH`.
 ```
 runs\apartment\
   screenshots\turn-001.png ... turn-030.png
-  transcript.jsonl      one record per turn: description, mcp_state, action, screenshot path
+  transcript.jsonl      one record per turn: description, mcp_state, internal_state, action, screenshot path
   transcript.md         the same trail as prose
 ```
 
-The MCP `read_state` answer is stored next to the screenshot description. It is
-still the placeholder `State will be here`, so the transcript makes the gap
-between the MCP state and the model's reading of the same frame visible.
+Each turn pairs three views of the same moment: the screenshot, the model's
+description of it, and the emulator snapshot from `read_game_state` (frame, A7,
+Z80 PC, display, pad). The MCP `read_state` answer is stored too; it is still the
+placeholder `State will be here`, so the transcript makes the gap between the MCP
+state and the model's reading of the same frame visible.
 
 Actions are exactly one of:
 

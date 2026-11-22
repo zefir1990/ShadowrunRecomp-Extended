@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import os
 import sys
 from contextlib import AsyncExitStack
@@ -59,6 +60,12 @@ class McpGame:
             raise GameToolError(f"{tool_name} failed: {message}")
         return result.content
 
+    async def _call_text(self, tool_name: str, arguments: dict[str, object]) -> str:
+        texts = [
+            block.text for block in await self._call(tool_name, arguments) if isinstance(block, TextContent)
+        ]
+        return "\n".join(texts)
+
     async def screenshot(self) -> bytes:
         for block in await self._call("screenshot", {}):
             if isinstance(block, ImageContent):
@@ -76,3 +83,6 @@ class McpGame:
             if isinstance(block, TextContent):
                 return block.text
         return ""
+
+    async def internal_state(self) -> dict[str, object]:
+        return json.loads(await self._call_text("read_game_state", {}))

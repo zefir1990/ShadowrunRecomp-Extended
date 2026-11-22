@@ -14,15 +14,18 @@ so no engine changes are needed.
 | `press_button` | `button` (`up`, `down`, `left`, `right`, `a`, `b`, `c`, `start`), `duration_ms` (default `150`) | Holds the button, waits, releases, returns the frame span |
 | `screenshot` | none | The current screen as a PNG image (320x224) |
 | `read_state` | none | `State will be here` (placeholder for the description) |
+| `read_game_state` | none | Emulator state at the current frame as JSON: m68k registers, VDP flags, pad input, frame number |
 
 Button names are case-insensitive. `duration_ms` is bounded to 1..60000. The
 release is sent in a `finally` block, so an interrupted call does not leave a
 button stuck.
 
 `screenshot` asks the runner for a PNG capture and returns those bytes as MCP
-image content, so a client renders the real screen. The capture goes through
-`TemporaryDirectory`, so nothing is left on disk. `read_state` is reserved for a
-textual description and is still a placeholder.
+image content, so a client renders the real screen. `read_game_state` pulls the
+emulator's own snapshot for the newest recorded frame (m68k registers, VDP,
+Z80, pad input) and returns it as JSON. Captures go through `TemporaryDirectory`,
+so nothing is left on disk. `read_state` is reserved for a textual description and
+is still a placeholder.
 
 ## Setup
 
@@ -79,6 +82,8 @@ The oracle build listens on `4379`, so set `GENESIS_DEBUG_PORT=4379` to drive it
 | Command | Meaning |
 |---|---|
 | `{"cmd":"frame_info"}` | current wall frame, used for the reported span |
+| `{"cmd":"get_frame","frame":N}` | recorded m68k/VDP/Z80 snapshot, used by `read_game_state` |
+| `{"cmd":"read_joypad_port"}` | pad state, used by `read_game_state` |
 | `{"cmd":"set_input","keys":"40"}` | hold A (`bit 6`) |
 | `{"cmd":"set_input","keys":"off"}` | release the TCP input source |
 | `{"cmd":"screenshot","path":"C:/path/screen.png"}` | write the current framebuffer |

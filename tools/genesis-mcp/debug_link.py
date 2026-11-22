@@ -115,3 +115,22 @@ class GenesisDebugLink:
 
     def current_frame(self) -> int:
         return int(self.request({"cmd": "frame_info"})["current_frame"])
+
+    def game_state(self) -> dict[str, Any]:
+        frame = self.current_frame()
+        recorded: dict[str, Any] | None = None
+        for candidate in (max(0, frame - 1), max(0, frame - 2)):
+            try:
+                recorded = self.request({"cmd": "get_frame", "frame": candidate})
+                break
+            except RuntimeError:
+                continue
+        if recorded is None:
+            raise RuntimeError("the runner has no recorded frame in its ring buffer yet")
+        recorded.pop("id", None)
+        recorded.pop("ok", None)
+        pad = self.request({"cmd": "read_joypad_port"})
+        pad.pop("id", None)
+        pad.pop("ok", None)
+        recorded["input"] = pad
+        return recorded

@@ -49,6 +49,15 @@ class FakeGame:
         self.state_requests += 1
         return "State will be here"
 
+    async def internal_state(self) -> dict[str, object]:
+        return {
+            "frame": 100,
+            "m68k": {"A": [0, 0, 0, 0, 0, 0, 0, 7890]},
+            "z80": {"PC": 2338},
+            "vdp": {"display": 1},
+            "input": {"buttons": "0x00"},
+        }
+
 
 class ScriptedModel:
     def __init__(self, observations: list[Observation]) -> None:
@@ -121,10 +130,12 @@ class RuntimeTest(unittest.TestCase):
             jsonl = (Path(directory) / "transcript.jsonl").read_text(encoding="utf-8").splitlines()
             self.assertEqual(json.loads(jsonl[0])["action"]["type"], "press")
             self.assertEqual(json.loads(jsonl[0])["mcp_state"], "State will be here")
+            self.assertEqual(json.loads(jsonl[0])["internal_state"]["frame"], 100)
             self.assertEqual(json.loads(jsonl[1])["action"]["type"], "stop")
             markdown = (Path(directory) / "transcript.md").read_text(encoding="utf-8")
             self.assertIn("Goal: start a game", markdown)
             self.assertIn("MCP read_state: State will be here", markdown)
+            self.assertIn("Internal state: frame 100, A7 0x001ED2, z80 PC 0x0922, display 1, pad 0x00", markdown)
             self.assertIn("Title screen. PRESS START.", markdown)
             self.assertEqual(game.state_requests, 2)
 

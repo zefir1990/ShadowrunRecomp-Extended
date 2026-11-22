@@ -62,6 +62,16 @@ class FakeDebugServer:
                 response: dict[str, object] = {"id": command["id"], "ok": True}
                 if command["cmd"] == "frame_info":
                     response["current_frame"] = self.frame
+                elif command["cmd"] == "get_frame":
+                    response.update(
+                        {
+                            "frame": command["frame"],
+                            "m68k": {"PC": 4660, "SR": 0},
+                            "vdp": {"display": 1, "vint": 1},
+                        }
+                    )
+                elif command["cmd"] == "read_joypad_port":
+                    response["buttons"] = "0x00"
                 elif command["cmd"] == "screenshot":
                     with open(str(command["path"]), "wb") as image_file:
                         image_file.write(self.image)
@@ -157,13 +167,31 @@ class ReadStateTest(unittest.TestCase):
         self.assertEqual(server.read_state(), "State will be here")
 
 
+class GameStateTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.fake_server = FakeDebugServer()
+        os.environ["GENESIS_DEBUG_PORT"] = str(self.fake_server.port)
+
+    def tearDown(self) -> None:
+        os.environ.pop("GENESIS_DEBUG_PORT", None)
+
+    def test_returns_registers_vdp_and_input_as_json(self) -> None:
+        state = json.loads(server.read_game_state())
+        self.assertEqual(state["m68k"]["PC"], 4660)
+        self.assertEqual(state["vdp"]["display"], 1)
+        self.assertEqual(state["input"]["buttons"], "0x00")
+        self.assertNotIn("id", state)
+        self.assertNotIn("ok", state)
+
+
 class ToolRegistrationTest(unittest.TestCase):
     def test_all_tools_are_exposed(self) -> None:
         tools = {tool.name: tool for tool in asyncio.run(server.server.list_tools())}
-        self.assertEqual(set(tools), {"press_button", "read_state", "screenshot"})
+        self.assertEqual(set(tools), {"press_button", "read_state", "screenshot", "read_game_state"})
         self.assertEqual(set(tools["press_button"].input_schema.get("properties", {})), {"button", "duration_ms"})
         self.assertEqual(tools["read_state"].input_schema.get("properties", {}), {})
         self.assertEqual(tools["screenshot"].input_schema.get("properties", {}), {})
+        self.assertEqual(tools["read_game_state"].input_schema.get("properties", {}), {})
 
 
 if __name__ == "__main__":

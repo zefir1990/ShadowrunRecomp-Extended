@@ -158,6 +158,7 @@ python -m unittest discover -s tools\genesis-mcp\tests -v
 | `press_button(button, duration_ms)` | Holds a pad button (`up`, `down`, `left`, `right`, `a`, `b`, `c`, `start`), sleeps, releases, reports the frame span |
 | `screenshot()` | Returns the current screen as a PNG image |
 | `read_state()` | Placeholder text (`State will be here`) for the future screen description |
+| `read_game_state()` | Emulator snapshot for the current frame as JSON: m68k, Z80, VDP, pad input |
 
 It talks to the runner's debug command server, so the game must run from a trace
 build with a `debug.ini` next to the executable:
@@ -196,7 +197,8 @@ screenshot by the vision model; `read_state` on the MCP server is not used until
 it grows a real implementation. The transcript lands in
 `screenshots/turn-NNN.png`, `transcript.jsonl` and `transcript.md`, and each
 record carries the current `read_state` answer (today the placeholder
-`State will be here`) next to the description read from the same screenshot.
+`State will be here`) and the `read_game_state` snapshot (frame, A7, Z80 PC,
+display, pad) next to the description read from the same screenshot.
 Tests use fake game and model objects, so they need no ROM and no API key:
 `python -m unittest discover -s tools\player-agent\tests`.
 

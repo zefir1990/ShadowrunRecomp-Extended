@@ -16,6 +16,7 @@ class GamePort(Protocol):
     async def screenshot(self) -> bytes: ...
     async def press(self, button: str, duration_ms: int) -> str: ...
     async def read_state(self) -> str: ...
+    async def internal_state(self) -> dict[str, object]: ...
 
 
 class PlayerModelPort(Protocol):
@@ -37,6 +38,7 @@ class StepRecord:
     turn: int
     description: str
     mcp_state: str
+    internal_state: dict[str, object]
     action: Action
     screenshot_path: str | None
 
@@ -76,6 +78,8 @@ class Transcript:
             lines.append("")
             lines.append(f"MCP read_state: {step.mcp_state}")
             lines.append("")
+            lines.append(f"Internal state: {state_summary(step.internal_state)}")
+            lines.append("")
             lines.append(f"Action: {action_summary(step.action)}")
             if step.screenshot_path:
                 lines.append(f"Screenshot: {step.screenshot_path}")
@@ -93,6 +97,29 @@ def action_summary(action: Action) -> str:
     return "unknown"
 
 
+def state_summary(state: dict[str, object]) -> str:
+    if not state:
+        return "unavailable"
+    parts = [f"frame {state.get('frame')}"]
+    m68k = state.get("m68k") if isinstance(state.get("m68k"), dict) else {}
+    registers = m68k.get("A") if isinstance(m68k.get("A"), list) else []
+    if len(registers) == 8 and isinstance(registers[7], int):
+        parts.append(f"A7 0x{registers[7]:06X}")
+    z80 = state.get("z80") if isinstance(state.get("z80"), dict) else {}
+    z80_pc = z80.get("PC")
+    if isinstance(z80_pc, int):
+        parts.append(f"z80 PC 0x{z80_pc:04X}")
+    vdp = state.get("vdp") if isinstance(state.get("vdp"), dict) else {}
+    display = vdp.get("display")
+    if display is not None:
+        parts.append(f"display {display}")
+    pad = state.get("input") if isinstance(state.get("input"), dict) else {}
+    buttons = pad.get("buttons")
+    if buttons is not None:
+        parts.append(f"pad {buttons}")
+    return ", ".join(parts)
+
+
 def _step_payload(step: StepRecord) -> dict[str, object]:
     if isinstance(step.action, PressAction):
         action_payload: dict[str, object] = {
@@ -108,6 +135,7 @@ def _step_payload(step: StepRecord) -> dict[str, object]:
         "turn": step.turn,
         "description": step.description,
         "mcp_state": step.mcp_state,
+        "internal_state": step.internal_state,
         "action": action_payload,
         "screenshot_path": step.screenshot_path,
     }
@@ -143,6 +171,7 @@ class PlayerRuntime:
         try:
             for turn in range(1, self._settings.max_turns + 1):
                 screenshot = await self._game.screenshot()
+                internal_state = await self._game.internal_state()
                 mcp_state = await self._game.read_state()
                 observation = await self._model.observe_and_decide(screenshot, self._settings.goal, history)
                 screenshot_path = (
@@ -152,6 +181,7 @@ class PlayerRuntime:
                     turn=turn,
                     description=observation.description,
                     mcp_state=mcp_state,
+                    internal_state=internal_state,
                     action=observation.action,
                     screenshot_path=screenshot_path,
                 )

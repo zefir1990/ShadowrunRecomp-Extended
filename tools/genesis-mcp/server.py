@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import time
 from pathlib import Path
@@ -80,6 +81,19 @@ def screenshot() -> Image:
 @server.tool(description="Return a textual description of the current game screen.")
 def read_state() -> str:
     return READ_STATE_PLACEHOLDER
+
+
+@server.tool(
+    description=(
+        "Return the emulator's internal state at the current frame as JSON: "
+        "m68k registers, VDP flags, pad input and the frame number."
+    )
+)
+def read_game_state() -> str:
+    endpoint = DebugEndpoint.from_environment()
+    with GenesisDebugLink(endpoint) as link:
+        state = link.game_state()
+    return json.dumps(state, sort_keys=True)
 
 
 def main() -> None:
